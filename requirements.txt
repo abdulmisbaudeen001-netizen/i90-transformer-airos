@@ -1,0 +1,18 @@
+# AIROS V3 — inference API dependencies
+# Pinned to versions verified against the training environment (PyTorch 2.11.0+cpu).
+# For GPU deployment: replace torch with the matching CUDA wheel from pytorch.org.
+
+# ── Core ML ───────────────────────────────────────────────────────────────────
+torch>=2.1.0              # scaled_dot_product_attention required (added in 2.0)
+                           # CPU wheel is fine for inference; swap for +cuXXX build on GPU
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.11.0              # uniform_filter1d, maximum_filter1d, minimum_filter1d
+pyarrow>=14.0.0            # pandas engine used in Cell 2 CSV loading
+
+# ── API ───────────────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0  # standard pulls websockets + httptools for performance
+pydantic>=2.0.0            # FastAPI 0.100+ requires Pydantic v2
