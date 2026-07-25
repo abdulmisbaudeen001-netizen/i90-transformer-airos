@@ -1,0 +1,107 @@
+{
+  "model_version": "3.0.0",
+  "schema_version": "v3.0",
+  "asset": "AUDUSD",
+  "input_shape": [
+    41,
+    22
+  ],
+  "sequence_layout": {
+    "position_0": "regime_token \u2014 deterministic market-state vector (7 values, padded to 22)",
+    "positions_1_to_40": "market bars \u2014 14 candle + 8 tick features"
+  },
+  "regime_token": {
+    "cols": {
+      "0": "trend direction & strength (tanh of EMA8-EMA21/ATR14 mean over last 20 bars)",
+      "1": "compression (1=tight range, 0=expanded)",
+      "2": "volatility level (0\u20131, higher=more volatile)",
+      "3": "proximity to swing high / resistance (0\u20131)",
+      "4": "proximity to swing low / support (0\u20131)",
+      "5": "trend-in-motion bias (trending \u00d7 non-compressed)",
+      "6": "breakout risk (compressed \u00d7 high vol)",
+      "7_to_21": "zero-padded"
+    },
+    "computation": "deterministic from candle features cols 6,10,11,12,13; no learned parameters"
+  },
+  "candle_features": {
+    "count": 14,
+    "names": [
+      "body_ratio",
+      "upper_wick",
+      "lower_wick",
+      "close_pos",
+      "direction",
+      "norm_range",
+      "atr_ratio",
+      "mom5",
+      "mom14",
+      "vol_std5",
+      "compression",
+      "trend_state",
+      "swing_high_dist",
+      "swing_low_dist"
+    ],
+    "normalization": "ATR-based + ratio; clipped [-5,5]"
+  },
+  "tick_features": {
+    "count": 8,
+    "names": [
+      "buyer_pressure",
+      "seller_pressure",
+      "delta",
+      "tick_speed",
+      "tick_accel",
+      "tick_imbalance",
+      "micro_vol",
+      "tick_density"
+    ],
+    "normalization": "bucket-duration-aware (V3). tick_speed = ticks/minute; tick_density = count / tick_max_per_bucket.",
+    "bucket_config": {
+      "min_minutes": 7,
+      "max_minutes": 14,
+      "max_ticks_bucket": 210
+    }
+  },
+  "output": {
+    "logits": "(B,4,2)  index 0=SELL  index 1=BUY",
+    "confidence": "(B,4)   softmax(calibrated_logits).max(-1)  \u2014 temperature calibrated per horizon (see calibration_temperature)."
+  },
+  "horizons": {
+    "T+1": "1-min direction",
+    "T+2": "2-min direction",
+    "T+3": "3-min direction",
+    "T+4": "4-min direction"
+  },
+  "calibration": {
+    "method": "temperature scaling (scalar per horizon, fit on VAL fold)",
+    "temperatures": [
+      1.031754493713379,
+      1.013875961303711,
+      1.008020043373108,
+      1.0079469680786133
+    ],
+    "ece_verified": true
+  },
+  "label_methodology": {
+    "type": "ATR-scaled dead-zone",
+    "rule": "BUY if fwd_ret > k*atr_ratio, SELL if fwd_ret < -k*atr_ratio, else dropped",
+    "k": 0.2
+  },
+  "validation_methodology": {
+    "type": "purged walk-forward",
+    "folds_requested": 5,
+    "folds_actual": 4,
+    "embargo_bars": 8
+  },
+  "decision": {
+    "primary": "T+1",
+    "threshold": 0.65,
+    "no_trade": "confidence < threshold"
+  },
+  "horizon_loss_weights": [
+    0.4,
+    0.3,
+    0.2,
+    0.1
+  ]
+}
