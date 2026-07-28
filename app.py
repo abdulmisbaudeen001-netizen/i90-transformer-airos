@@ -196,12 +196,12 @@ def build_candle_features(ohlc_df: pd.DataFrame) -> np.ndarray:
     ret1[1:]  = (c[1:] - c[:-1]) / (np.abs(c[:-1]) + eps)
 
     mom5      = np.empty(N, np.float32); mom5[:5] = 0
-    mom5[5:]  = (c[5:] - c[:-5]) / (np.abs(c[:-5]) + eps) / (atr_ratio[5:] + eps)
+    mom5[5:]  = (c[5:] - c[:-5]) / (np.abs(c[:-5]) + eps)
 
     mom14     = np.empty(N, np.float32); mom14[:14] = 0
-    mom14[14:]= (c[14:] - c[:-14]) / (np.abs(c[:-14]) + eps) / (atr_ratio[14:] + eps)
+    mom14[14:]= (c[14:] - c[:-14]) / (np.abs(c[:-14]) + eps)
 
-    vol_std5  = _rolling_std(ret1, 5) / (atr_ratio + eps)
+    vol_std5  = _rolling_std(ret1, 5)
 
     from scipy.ndimage import uniform_filter1d
     avg_rng20   = uniform_filter1d(rng.astype(np.float64), size=20, mode="nearest").astype(np.float32)
@@ -307,14 +307,15 @@ def build_tick_features(
     seller_pressure = sell_sum / total
     delta           = buyer_pressure - seller_pressure
     imbalance       = np.clip((buy_sum - sell_sum) / total, -1.0, 1.0)
-    tick_speed      = np.clip(count / (bucket_minutes * 10.0), 0.0, 1.0)
+    tick_speed      = np.clip(count / (bucket_minutes * 15.0), 0.0, 1.0)
     tick_accel      = np.empty(N_bars, dtype=np.float32)
     tick_accel[0]   = 0.0
     tick_accel[1:]  = np.diff(tick_speed)
     e_r             = ret_sum  / total
     e_r2            = ret2_sum / total
     micro_vol       = np.clip(np.sqrt(np.maximum(e_r2 - e_r**2, 0.0)) * 1000.0, 0.0, 1.0)
-    density         = np.clip(count / float(tick_max_per_bucket), 0.0, 1.0)
+    effective_max   = np.maximum(1.0, tick_max_per_bucket * (bucket_minutes / 14.0))
+    density         = np.clip(count / effective_max, 0.0, 1.0)
 
     features = np.stack([
         buyer_pressure, seller_pressure, delta,
