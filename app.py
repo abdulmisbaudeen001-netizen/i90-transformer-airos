@@ -358,8 +358,8 @@ class AIROSEngine:
         tick_df: Optional[pd.DataFrame] = None,
         tick_bucket_minutes: Optional[float] = None,
     ) -> dict:
-        warmup     = 25
-        min_needed = self.seq + warmup
+        warmup     = 0
+        min_needed = self.seq
         if len(ohlc_df) < min_needed:
             return {
                 "direction": "NO_TRADE",
@@ -584,10 +584,10 @@ def health():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    if len(req.ohlc) < CONFIG["sequence_length"] + 25:
+    if len(req.ohlc) < CONFIG["sequence_length"]:
         raise HTTPException(
             status_code=422,
-            detail=f"Need at least {CONFIG['sequence_length'] + 25} OHLC bars, "
+            detail=f"Need at least {CONFIG['sequence_length']} OHLC bars, "
                    f"got {len(req.ohlc)}.",
         )
 
